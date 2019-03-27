@@ -17,11 +17,13 @@ import numpy as np
 import cv2
 
 # Add any python libraries here
-import matplotlib.pyplot as plt
-import scipy.ndimage.filters as filters
 import math
 import argparse
 from glob import glob
+
+
+def getExtrinsicParams(K, lamda):
+    K_inv = np.linalg.inv(K)
 
 
 def getCalibMatrix(b):
@@ -33,11 +35,11 @@ def getCalibMatrix(b):
     gamma = (-1*b[0][1]*alpha**2*beta)/(lamda)
     u = (gamma*v)/beta - (b[0][3]*alpha**2)/lamda
 
-    print("u = {}\nv = {}\nlamda = {}\nalpha = {}\nbeta = {}\ngamma = {}".format(
+    print("u = {}\nv = {}\nlamda = {}\nalpha = {}\nbeta = {}\ngamma = {}\n".format(
         u, v, lamda, alpha, beta, gamma))
 
     A = np.array([[alpha, gamma, u], [0, beta, v], [0, 0, 1]])
-    return A
+    return A, lamda
 
 
 def getBMatrix(V):
@@ -146,9 +148,6 @@ def main():
             cv2.waitKey(0)
 
             corners = corners.reshape(-1, 2)
-            # _2d_points.append(corners)  # append current 2D points
-            # _3d_points.append(world_points)  # 3D points are always the same
-            # print corners[34], world_points[34]
 
             homography_matrix = computeHomography(corners, world_points)
 
@@ -159,7 +158,10 @@ def main():
     V = np.asarray(V)
     b = getBMatrix(V)
 
-    K = getCalibMatrix(b)
+    K, lamda = getCalibMatrix(b)
+    print("Calibration matrix: \n\n {} \n".format(K))
+
+    R, t = getExtrinsicParams(K, lamda)
 
 
 if __name__ == '__main__':
