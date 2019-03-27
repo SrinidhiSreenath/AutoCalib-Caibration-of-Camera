@@ -22,8 +22,24 @@ import argparse
 from glob import glob
 
 
-def getExtrinsicParams(K, lamda):
+def getExtrinsicParams(K, lamda, homography_matrix):
     K_inv = np.linalg.inv(K)
+
+    r1 = np.dot(K_inv, homography_matrix[:, 0])
+    lamda = np.linalg.norm(r1, ord=2)
+    r1 = r1/lamda
+
+    r2 = np.dot(K_inv, homography_matrix[:, 1])
+    r2 = r2/lamda
+
+    t = np.dot(K_inv, homography_matrix[:, 2])/lamda
+
+    r3 = np.cross(r1, r2)
+
+    R = np.asarray([r1, r2, r3])
+    R = R.T
+
+    return R, t
 
 
 def getCalibMatrix(b):
@@ -144,8 +160,8 @@ def main():
 
         if ret == True:
             cv2.drawChessboardCorners(gray, (7, 5), corners, ret)
-            cv2.imshow("image", gray)
-            cv2.waitKey(0)
+            # cv2.imshow("image", gray)
+            # cv2.waitKey(0)
 
             corners = corners.reshape(-1, 2)
 
@@ -161,7 +177,8 @@ def main():
     K, lamda = getCalibMatrix(b)
     print("Calibration matrix: \n\n {} \n".format(K))
 
-    R, t = getExtrinsicParams(K, lamda)
+    R, t = getExtrinsicParams(K, lamda, homography_matrix)
+    print("Extrinsic parameters: \nRotation Matrix: \n\n {} \n\nTransaltion Vector: \n\n {}".format(R, t))
 
 
 if __name__ == '__main__':
