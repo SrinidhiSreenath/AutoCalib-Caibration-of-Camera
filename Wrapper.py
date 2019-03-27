@@ -33,7 +33,7 @@ def getCalibMatrix(b):
     gamma = (-1*b[0][1]*alpha**2*beta)/(lamda)
     u = (gamma*v)/beta - (b[0][3]*alpha**2)/lamda
 
-    print("u = {}\nv = {}\nlamda = {}\naplha = {}\nbeta = {}\ngamma = {}\n".format(
+    print("u = {}\nv = {}\nlamda = {}\nalpha = {}\nbeta = {}\ngamma = {}".format(
         u, v, lamda, alpha, beta, gamma))
 
     A = np.array([[alpha, gamma, u], [0, beta, v], [0, 0, 1]])
@@ -41,8 +41,7 @@ def getCalibMatrix(b):
 
 
 def getBMatrix(V):
-    u, s, vh = np.linalg.svd(V, full_matrices=True)
-    # print vh
+    _, _, vh = np.linalg.svd(V, full_matrices=True)
     # solve Vb = 0 for b
     b = vh[-1:]
     return b
@@ -79,7 +78,7 @@ def updateVMatrix(H, V):
 
 
 def computeHomography(corners, world_points):
-    n = 10
+    n = 20
     src = np.asarray(world_points[: n])  # world
     dst = np.asarray(corners[: n])  # image
 
@@ -103,7 +102,7 @@ def computeHomography(corners, world_points):
 
         i = i+2
 
-    u, s, vh = np.linalg.svd(P, full_matrices=True)
+    _, _, vh = np.linalg.svd(P, full_matrices=True)
     h = vh[-1:]
     h.resize((3, 3))
 
@@ -134,21 +133,6 @@ def main():
     world_points = np.asarray(world_points)
 
     # print world_points
-    '''
-    H1 = np.array([[-19.0845, 981.0899, 100.7805], [-1704.8808, -
-                                                    64.26607, 285.5835], [-0.008419, -0.1168, 1.0]])
-    H2 = np.array([[167.74933, 421.35797, 117.690033],
-                   [-1196.27269, -468.71546, 271.218], [0.778903, -1.7984935, 1.0]])
-    H3 = np.array([[-400.095, 470.74177, 133.72457], [-1206.2368, -
-                                                      283.841, 240.074313], [-1.52232934, -1.0556823, 1.0]])
-    H4 = np.array([[-359.29829, 940.502344, 126.0333], [-1646.69602, -
-                                                        272.976406, 305.891843], [-1.7148713, 0.879775592, 1.0]])
-
-    updateVMatrix(H1, V)
-    updateVMatrix(H2, V)
-    updateVMatrix(H3, V)
-    updateVMatrix(H4, V)
-    '''
     for imagepath in images:
         image = cv2.imread(imagepath)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -167,11 +151,6 @@ def main():
             # print corners[34], world_points[34]
 
             homography_matrix = computeHomography(corners, world_points)
-            print homography_matrix
-
-            # H = cv2.getPerspectiveTransform(dst, src)
-            # print H
-            print "\n \n"
 
             updateVMatrix(homography_matrix, V)
 
@@ -179,7 +158,6 @@ def main():
 
     V = np.asarray(V)
     b = getBMatrix(V)
-    print b
 
     K = getCalibMatrix(b)
 
