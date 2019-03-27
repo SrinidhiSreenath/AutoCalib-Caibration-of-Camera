@@ -78,53 +78,36 @@ def updateVMatrix(H, V):
     # print "\n \n"
 
 
-def computeHomography(matched_points):
-    homography = np.zeros((3, 3))
+def computeHomography(corners, world_points):
+    n = 10
+    src = np.asarray(world_points[: n])  # world
+    dst = np.asarray(corners[: n])  # image
 
-    # select 4 matched points
-    pair1 = matched_points[0, ]
-    pair2 = matched_points[1, ]
-    pair3 = matched_points[2, ]
-    pair4 = matched_points[3, ]
+    src[:, [0, 1]] = src[:, [1, 0]]
+    dst[:, [0, 1]] = dst[:, [1, 0]]
 
-    # define x1, y1 ... x4, y4 and x1',y1' ... x4',y4'
-    x1, y1, x1_dash, y1_dash = pair1[0,
-                                     0], pair1[0, 1], pair1[1, 0], pair1[1, 1]
-    x2, y2, x2_dash, y2_dash = pair2[0,
-                                     0], pair2[0, 1], pair2[1, 0], pair2[1, 1]
-    x3, y3, x3_dash, y3_dash = pair3[0,
-                                     0], pair3[0, 1], pair3[1, 0], pair3[1, 1]
-    x4, y4, x4_dash, y4_dash = pair4[0,
-                                     0], pair4[0, 1], pair4[1, 0], pair4[1, 1]
+    P = np.zeros((2*n, 9))
 
-    # define P matrix
-    P = np.zeros((9, 9))
-    P[0][0], P[2][0], P[4][0], P[6][0] = -x1, -x2, -x3, -x4
-    P[0][1], P[2][1], P[4][1], P[6][1] = -y1, -y2, -y3, -y4
-    P[0][2], P[2][2], P[4][2], P[6][2] = -1, -1, -1, -1
+    i = 0
+    for (srcpt, dstpt) in zip(src, dst):
+        x, y, x_dash, y_dash = srcpt[0], srcpt[1], dstpt[0], dstpt[1]
 
-    P[1][3], P[3][3], P[5][3], P[7][3] = -x1, -x2, -x3, -x4
-    P[1][4], P[3][4], P[5][4], P[7][4] = -y1, -y2, -y3, -y4
-    P[1][5], P[3][5], P[5][5], P[7][5] = -1, -1, -1, -1
+        P[i][0], P[i][1], P[i][2] = -x, -y, -1
+        P[i+1][0], P[i+1][1], P[i+1][2] = 0, 0, 0
 
-    P[0][6], P[1][6], P[2][6], P[3][6], P[4][6], P[5][6], P[6][6], P[7][6] = x1*x1_dash, x1 * \
-        y1_dash, x2*x2_dash, x2*y2_dash, x3*x3_dash, x3*y3_dash, x4*x4_dash, x4*y4_dash
-    P[0][7], P[1][7], P[2][7], P[3][7], P[4][7], P[5][7], P[6][7], P[7][7] = y1*x1_dash, y1 * \
-        y1_dash, y2*x2_dash, y2*y2_dash, y3*x3_dash, y3*y3_dash, y4*x4_dash, y4*y4_dash
-    P[0][8], P[1][8], P[2][8], P[3][8], P[4][8], P[5][8], P[6][8], P[7][8] = x1_dash, y1_dash, x2_dash, y2_dash, x3_dash, y3_dash, x4_dash, y4_dash
+        P[i][3], P[i][4], P[i][5] = 0, 0, 0
+        P[i+1][3], P[i+1][4], P[i+1][5] = -x, -y, -1
 
-    # Since we know that last element of homography is 1, I define another row in P matrix to make it easier to solve for H.
-    P[8][8] = 1
+        P[i][6], P[i][7], P[i][8] = x*x_dash, y*x_dash, x_dash
+        P[i+1][6], P[i+1][7], P[i+1][8] = x*y_dash, y*y_dash, y_dash
 
-    # define b matrix
-    b = np.zeros((9, 1))
-    b[8][0] = 1
+        i = i+2
 
-    # PH = b. Solve for H.
-    h = np.linalg.solve(P, b)
-    homography[0][0], homography[0][1], homography[0][2] = h[0], h[1], h[2]
-    homography[1][0], homography[1][1], homography[1][2] = h[3], h[4], h[5]
-    homography[2][0], homography[2][1], homography[2][2] = h[6], h[7], h[8]
+    u, s, vh = np.linalg.svd(P, full_matrices=True)
+    h = vh[-1:]
+    h.resize((3, 3))
+
+    homography = h/h[2, 2]
 
     return homography
 
@@ -149,8 +132,9 @@ def main():
         35, 1))).astype(np.float32)
     world_points = world_points*23
     world_points = np.asarray(world_points)
-    # print world_points
 
+    # print world_points
+    '''
     H1 = np.array([[-19.0845, 981.0899, 100.7805], [-1704.8808, -
                                                     64.26607, 285.5835], [-0.008419, -0.1168, 1.0]])
     H2 = np.array([[167.74933, 421.35797, 117.690033],
@@ -164,47 +148,34 @@ def main():
     updateVMatrix(H2, V)
     updateVMatrix(H3, V)
     updateVMatrix(H4, V)
+    '''
+    for imagepath in images:
+        image = cv2.imread(imagepath)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.resize(gray, (400, 300))
 
-    # for imagepath in images:
-    #     image = cv2.imread(imagepath)
-    #     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    #     gray = cv2.resize(gray, (400, 300))
+        ret, corners = cv2.findChessboardCorners(gray, (7, 5), None)
 
-    #     ret, corners = cv2.findChessboardCorners(gray, (7, 5), None)
+        if ret == True:
+            cv2.drawChessboardCorners(gray, (7, 5), corners, ret)
+            cv2.imshow("image", gray)
+            cv2.waitKey(0)
 
-    #     if ret == True:
-    #         cv2.drawChessboardCorners(gray, (7, 5), corners, ret)
-    #         cv2.imshow("image", gray)
-    #         cv2.waitKey(0)
+            corners = corners.reshape(-1, 2)
+            # _2d_points.append(corners)  # append current 2D points
+            # _3d_points.append(world_points)  # 3D points are always the same
+            # print corners[34], world_points[34]
 
-    #         corners = corners.reshape(-1, 2)
-    #         # _2d_points.append(corners)  # append current 2D points
-    #         # _3d_points.append(world_points)  # 3D points are always the same
-    #         # print corners[34], world_points[34]
+            homography_matrix = computeHomography(corners, world_points)
+            print homography_matrix
 
-    #         src = np.asarray(world_points[: 4])  # world
-    #         dst = np.asarray(corners[: 4])  # image
+            # H = cv2.getPerspectiveTransform(dst, src)
+            # print H
+            print "\n \n"
 
-    #         src[:, [0, 1]] = src[:, [1, 0]]
-    #         dst[:, [0, 1]] = dst[:, [1, 0]]
+            updateVMatrix(homography_matrix, V)
 
-    #         matched_inliers = []
-
-    #         for i in range(0, 4):
-    #             matched_inliers.append([src[i], dst[i]])
-
-    #         matched_inliers = np.asarray(matched_inliers, dtype=np.float32)
-
-    #         H = cv2.getPerspectiveTransform(dst, src)
-    #         print H
-    #         print "\n \n"
-    #         # homography_matrix = computeHomography(matched_inliers)
-    #         # print homography_matrix
-    #         # print "\n \n"
-
-    #         updateVMatrix(H, V)
-
-    #     cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
     V = np.asarray(V)
     b = getBMatrix(V)
