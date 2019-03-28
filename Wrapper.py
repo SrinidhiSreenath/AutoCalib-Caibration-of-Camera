@@ -133,15 +133,13 @@ def main():
     # Add any Command Line arguments here
     Parser = argparse.ArgumentParser()
     Parser.add_argument('--basepath', default="Data",
-                        help='Path to directory with images to stitch for panaroma')
+                        help='Path to directory with chessboard images')
 
     Args = Parser.parse_args()
     dirpath = Args.basepath
     completepath = str(dirpath) + str("/*.JPG")
     images = sorted(glob(completepath))
 
-    _3d_points = []
-    _2d_points = []
     V = []
 
     x, y = np.meshgrid(range(7), range(5))
@@ -153,6 +151,7 @@ def main():
     # print world_points
     for imagepath in images:
         image = cv2.imread(imagepath)
+        print image.shape
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         gray = cv2.resize(gray, (400, 300))
 
@@ -160,10 +159,11 @@ def main():
 
         if ret == True:
             cv2.drawChessboardCorners(gray, (7, 5), corners, ret)
-            # cv2.imshow("image", gray)
-            # cv2.waitKey(0)
-
             corners = corners.reshape(-1, 2)
+
+            print corners
+            cv2.imshow("image", gray)
+            cv2.waitKey(0)
 
             homography_matrix = computeHomography(corners, world_points)
 
