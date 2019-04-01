@@ -137,33 +137,38 @@ def main():
 
     Args = Parser.parse_args()
     dirpath = Args.basepath
-    completepath = str(dirpath) + str("/*.JPG")
+    completepath = str(dirpath) + str("/*.jpg")
     images = sorted(glob(completepath))
 
     V = []
 
-    x, y = np.meshgrid(range(7), range(5))
-    world_points = np.hstack((x.reshape(35, 1), y.reshape(
-        35, 1))).astype(np.float32)
-    world_points = world_points*23
+    x, y = np.meshgrid(range(9), range(6))
+    world_points = np.hstack((x.reshape(54, 1), y.reshape(
+        54, 1))).astype(np.float32)
+    world_points = world_points*21.5
     world_points = np.asarray(world_points)
 
     # print world_points
+
     for imagepath in images:
         image = cv2.imread(imagepath)
-        print image.shape
+        scale_percent = 30  # percent of original size
+        width = int(image.shape[1] * scale_percent / 100)
+        height = int(image.shape[0] * scale_percent / 100)
+        dim = (width, height)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.resize(gray, (400, 300))
+        # gray = cv2.resize(gray, dim)
 
-        ret, corners = cv2.findChessboardCorners(gray, (7, 5), None)
+        ret, corners = cv2.findChessboardCorners(gray, (9, 6), None)
 
         if ret == True:
-            cv2.drawChessboardCorners(gray, (7, 5), corners, ret)
             corners = corners.reshape(-1, 2)
+            cv2.drawChessboardCorners(gray, (9, 6), corners, ret)
 
-            print corners
-            cv2.imshow("image", gray)
-            cv2.waitKey(0)
+            # print corners
+
+            # cv2.imshow("image", gray)
+            # cv2.waitKey(0)
 
             homography_matrix = computeHomography(corners, world_points)
 
