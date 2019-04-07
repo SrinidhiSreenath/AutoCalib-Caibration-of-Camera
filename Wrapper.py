@@ -100,9 +100,6 @@ def computeHomography(corners, world_points):
     src = np.asarray(world_points[: n])  # world
     dst = np.asarray(corners[: n])  # image
 
-    src[:, [0, 1]] = src[:, [1, 0]]
-    dst[:, [0, 1]] = dst[:, [1, 0]]
-
     P = np.zeros((2*n, 9))
 
     i = 0
