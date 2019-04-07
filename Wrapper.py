@@ -35,6 +35,7 @@ def getReprojectionError(image_points, world_points, A, R, t):
         M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
         realpt = np.array([[pt[0]], [pt[1]], [1]])
         projpt = np.dot(N, M)
+        projpt = projpt/projpt[2, ]
         diff = realpt - projpt
         error = error + np.linalg.norm(diff, ord=2)
 
@@ -218,8 +219,9 @@ def main():
             image_points, world_points, K, R, t)
 
         error = error + reprojection_error
+        error = error/(13*9*6)
 
-    print("\nReprojection error: \n{}".format(error))
+    print("\nMean Reprojection error: \n{}".format(error))
 
 
 if __name__ == '__main__':
