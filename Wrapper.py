@@ -20,13 +20,32 @@ import cv2
 import math
 import argparse
 from glob import glob
+from scipy import optimize as opt
+
+
+def getReprojectionError(image_points, world_points, A, R, t):
+    error = 0
+    augment = np.zeros((3, 4))
+    augment[:, :-1] = R
+    augment[:, -1] = t
+
+    N = np.dot(A, augment)
+
+    for pt, wrldpt in zip(image_points, world_points):
+        M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
+        realpt = np.array([[pt[0]], [pt[1]], [1]])
+        projpt = np.dot(N, M)
+        diff = realpt - projpt
+        error = error + np.linalg.norm(diff, ord=2)
+
+    return error
 
 
 def getExtrinsicParams(K, lamda, homography_matrix):
     K_inv = np.linalg.inv(K)
 
     r1 = np.dot(K_inv, homography_matrix[:, 0])
-    lamda = np.linalg.norm(r1, ord=2)
+    lamda = np.linalg.norm(r1, ord=2),
     r1 = r1/lamda
 
     r2 = np.dot(K_inv, homography_matrix[:, 1])
@@ -38,6 +57,9 @@ def getExtrinsicParams(K, lamda, homography_matrix):
 
     R = np.asarray([r1, r2, r3])
     R = R.T
+
+    # t = np.array([t])
+    # t = t.T
 
     return R, t
 
@@ -145,6 +167,9 @@ def main():
     world_points = world_points*21.5
     world_points = np.asarray(world_points)
 
+    images_points = []
+    homography_matrices = []
+
     # print world_points
 
     for imagepath in images:
@@ -169,6 +194,9 @@ def main():
 
             homography_matrix = computeHomography(corners, world_points)
 
+            images_points.append(corners)
+            homography_matrices.append(homography_matrix)
+
             updateVMatrix(homography_matrix, V)
 
         cv2.destroyAllWindows()
@@ -177,10 +205,21 @@ def main():
     b = getBMatrix(V)
 
     K, lamda = getCalibMatrix(b)
-    print("Calibration matrix: \n\n {} \n".format(K))
+    print("Initial estimate of Calibration matrix: \n\n {} \n".format(K))
 
-    R, t = getExtrinsicParams(K, lamda, homography_matrix)
-    print("Extrinsic parameters: \nRotation Matrix: \n\n {} \n\nTransaltion Vector: \n\n {}".format(R, t))
+    # R, t = getExtrinsicParams(K, lamda, homography_matrix)
+    # print("Initial estimate of Extrinsic parameters: \nRotation Matrix: \n\n {} \n\nTransaltion Vector: \n\n {}".format(R, t))
+
+    error = 0
+    for image_points, homography_matrix in zip(images_points, homography_matrices):
+        R, t = getExtrinsicParams(K, lamda, homography_matrix)
+
+        reprojection_error = getReprojectionError(
+            image_points, world_points, K, R, t)
+
+        error = error + reprojection_error
+
+    print("\nReprojection error: \n{}".format(error))
 
 
 if __name__ == '__main__':
