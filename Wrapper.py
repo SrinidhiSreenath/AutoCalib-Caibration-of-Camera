@@ -219,8 +219,8 @@ def main():
             image_points, world_points, K, R, t)
 
         error = error + reprojection_error
-        error = error/(13*9*6)
 
+    error = error/(13*9*6)
     print("\nMean Reprojection error: \n{}".format(error))
 
 
