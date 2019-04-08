@@ -23,25 +23,6 @@ from glob import glob
 from scipy import optimize as opt
 
 
-def getReprojectionError(image_points, world_points, A, R, t):
-    error = 0
-    augment = np.zeros((3, 4))
-    augment[:, :-1] = R
-    augment[:, -1] = t
-
-    N = np.dot(A, augment)
-
-    for pt, wrldpt in zip(image_points, world_points):
-        M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
-        realpt = np.array([[pt[0]], [pt[1]], [1]])
-        projpt = np.dot(N, M)
-        projpt = projpt/projpt[2, ]
-        diff = realpt - projpt
-        error = error + np.linalg.norm(diff, ord=2)
-
-    return error
-
-
 def getExtrinsicParams(K, lamda, homography_matrix):
     K_inv = np.linalg.inv(K)
 
@@ -63,6 +44,88 @@ def getExtrinsicParams(K, lamda, homography_matrix):
     # t = t.T
 
     return R, t
+
+
+def optimizationCostFunction(init, lamda, images_points, world_points, homography_matrices):
+    K = np.zeros(shape=(3, 3))
+    K[0, 0], K[1, 1], K[0, 2], K[1, 2], K[0, 1], K[2,
+                                                   2] = init[0], init[1], init[2], init[3], init[4], 1
+    k1, k2 = init[5], init[6]
+    u0, v0 = init[2], init[3]
+
+    reprojection_error = np.empty(shape=(1404), dtype=np.float64)
+    i = 0
+    for image_points, homography_matrix in zip(images_points, homography_matrices):
+        R, t = getExtrinsicParams(K, lamda, homography_matrix)
+
+        augment = np.zeros((3, 4))
+        augment[:, :-1] = R
+        augment[:, -1] = t
+
+        for pt, wrldpt in zip(image_points, world_points):
+            M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
+            ar = np.dot(augment, M)
+            ar = ar/ar[2, ]
+            x, y = ar[0], ar[1]
+
+            U = np.dot(K, ar)
+            U = U/U[2, ]
+
+            u, v = U[0], U[1]
+            u_dash = u + (u-u0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
+            v_dash = v + (v-v0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
+
+            reprojection_error[i] = pt[0]-u_dash
+            i += 1
+            reprojection_error[i] = pt[1]-v_dash
+            i += 1
+
+    return reprojection_error
+
+
+def getReprojectionErrorOptimized(image_points, world_points, A, R, t, k1, k2):
+    error = 0
+    augment = np.zeros((3, 4))
+    augment[:, :-1] = R
+    augment[:, -1] = t
+
+    u0, v0 = A[0, 2], A[1, 2]
+
+    for pt, wrldpt in zip(image_points, world_points):
+        M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
+        ar = np.dot(augment, M)
+        ar = ar/ar[2, ]
+        x, y = ar[0], ar[1]
+
+        U = np.dot(A, ar)
+        U = U/U[2, ]
+
+        u, v = U[0], U[1]
+        u_dash = u + (u-u0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
+        v_dash = v + (v-v0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
+
+        error = error + np.sqrt((pt[0]-u_dash)**2 + (pt[1]-v_dash)**2)
+
+    return error
+
+
+def getReprojectionError(image_points, world_points, A, R, t):
+    error = 0
+    augment = np.zeros((3, 4))
+    augment[:, :-1] = R
+    augment[:, -1] = t
+
+    N = np.dot(A, augment)
+
+    for pt, wrldpt in zip(image_points, world_points):
+        M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
+        realpt = np.array([[pt[0]], [pt[1]], [1]])
+        projpt = np.dot(N, M)
+        projpt = projpt/projpt[2, ]
+        diff = realpt - projpt
+        error = error + np.linalg.norm(diff, ord=2)
+
+    return error
 
 
 def getCalibMatrix(b):
@@ -221,7 +284,31 @@ def main():
         error = error + reprojection_error
 
     error = error/(13*9*6)
-    print("\nMean Reprojection error: \n{}".format(error))
+    print("\nMean Reprojection error before optimization: \n{}".format(error))
+
+    init = [K[0, 0], K[1, 1], K[0, 2], K[1, 2], K[0, 1], 0, 0]
+    res = opt.least_squares(fun=optimizationCostFunction, x0=init,
+                            method="lm", args=[lamda, images_points, world_points, homography_matrices])
+
+    # print res.x
+
+    K_opt = np.zeros(shape=(3, 3))
+    K_opt[0, 0], K_opt[1, 1], K_opt[0, 2], K_opt[1, 2], K_opt[0, 1], K_opt[2,
+                                                                           2] = res.x[0], res.x[1], res.x[2], res.x[3], res.x[4], 1
+
+    k1_opt, k2_opt = res.x[5], res.x[6]
+
+    error_opt = 0
+    for image_points, homography_matrix in zip(images_points, homography_matrices):
+        R, t = getExtrinsicParams(K, lamda, homography_matrix)
+
+        reprojection_error = getReprojectionErrorOptimized(
+            image_points, world_points, K_opt, R, t, k1_opt, k2_opt)
+
+        error_opt = error_opt + reprojection_error
+
+    error_opt = error_opt/(13*9*6)
+    print("\nMean Reprojection error after optimization: \n{}".format(error_opt))
 
 
 if __name__ == '__main__':
