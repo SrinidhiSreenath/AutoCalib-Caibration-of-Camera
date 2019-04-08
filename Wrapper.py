@@ -38,7 +38,7 @@ def displayReprojectedPoints(images_points, optimized_points, images):
 
         # cv2.imshow("Reprojected", image)
         # cv2.moveWindow("Reprojected", 200, 200)
-        cv2.imwrite("{}.jpg".format(i), image)
+        cv2.imwrite("Output/{}.jpg".format(i), image)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
