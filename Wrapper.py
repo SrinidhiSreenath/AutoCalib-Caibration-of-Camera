@@ -65,15 +65,16 @@ def optimizationCostFunction(init, lamda, images_points, world_points, homograph
         for pt, wrldpt in zip(image_points, world_points):
             M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
             ar = np.dot(augment, M)
-            ar = ar/ar[2, ]
+            ar = ar/ar[2]
             x, y = ar[0], ar[1]
 
             U = np.dot(K, ar)
-            U = U/U[2, ]
-
+            U = U/U[2]
             u, v = U[0], U[1]
-            u_dash = u + (u-u0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
-            v_dash = v + (v-v0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
+
+            t = x**2 + y**2
+            u_dash = u + (u-u0)*(k1*t + k2*(t**2))
+            v_dash = v + (v-v0)*(k1*t + k2*(t**2))
 
             reprojection_error[i] = pt[0]-u_dash
             i += 1
@@ -94,15 +95,16 @@ def getReprojectionErrorOptimized(image_points, world_points, A, R, t, k1, k2):
     for pt, wrldpt in zip(image_points, world_points):
         M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
         ar = np.dot(augment, M)
-        ar = ar/ar[2, ]
+        ar = ar/ar[2]
         x, y = ar[0], ar[1]
 
         U = np.dot(A, ar)
-        U = U/U[2, ]
-
+        U = U/U[2]
         u, v = U[0], U[1]
-        u_dash = u + (u-u0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
-        v_dash = v + (v-v0)*(k1*(x**2 + y**2) + k2*(x**2 + y**2)**2)
+
+        t = x**2 + y**2
+        u_dash = u + (u-u0)*(k1*t + k2*(t**2))
+        v_dash = v + (v-v0)*(k1*t + k2*(t**2))
 
         error = error + np.sqrt((pt[0]-u_dash)**2 + (pt[1]-v_dash)**2)
 
@@ -121,7 +123,7 @@ def getReprojectionError(image_points, world_points, A, R, t):
         M = np.array([[wrldpt[0]], [wrldpt[1]], [0], [1]])
         realpt = np.array([[pt[0]], [pt[1]], [1]])
         projpt = np.dot(N, M)
-        projpt = projpt/projpt[2, ]
+        projpt = projpt/projpt[2]
         diff = realpt - projpt
         error = error + np.linalg.norm(diff, ord=2)
 
@@ -269,7 +271,7 @@ def main():
     b = getBMatrix(V)
 
     K, lamda = getCalibMatrix(b)
-    print("Initial estimate of Calibration matrix: \n\n {} \n".format(K))
+    print("Initial estimate of Calibration matrix: \n\n{}".format(K))
 
     # R, t = getExtrinsicParams(K, lamda, homography_matrix)
     # print("Initial estimate of Extrinsic parameters: \nRotation Matrix: \n\n {} \n\nTransaltion Vector: \n\n {}".format(R, t))
@@ -298,9 +300,12 @@ def main():
 
     k1_opt, k2_opt = res.x[5], res.x[6]
 
+    print("\nCalibration matrix after optimization: \n\n{}".format(K_opt))
+    print("\nDistortion coefficients after optimization: \n{}, {}".format(k1_opt, k2_opt))
+
     error_opt = 0
     for image_points, homography_matrix in zip(images_points, homography_matrices):
-        R, t = getExtrinsicParams(K, lamda, homography_matrix)
+        R, t = getExtrinsicParams(K_opt, lamda, homography_matrix)
 
         reprojection_error = getReprojectionErrorOptimized(
             image_points, world_points, K_opt, R, t, k1_opt, k2_opt)
@@ -308,7 +313,8 @@ def main():
         error_opt = error_opt + reprojection_error
 
     error_opt = error_opt/(13*9*6)
-    print("\nMean Reprojection error after optimization: \n{}".format(error_opt))
+    print("\nMean Reprojection error after optimization: \n{}".format(
+        error_opt[0]))
 
 
 if __name__ == '__main__':
